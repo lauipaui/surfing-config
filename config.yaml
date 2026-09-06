@@ -176,46 +176,57 @@ proxy-groups:
   - name: AI 服务
     type: select
     proxies: [节点选择, 自动选择, 故障转移, DIRECT]
+    use: [provider1]
 
   - name: Telegram
     type: select
     proxies: [节点选择, 自动选择, 故障转移, DIRECT]
+    use: [provider1]
 
   - name: YouTube
     type: select
     proxies: [节点选择, 自动选择, DIRECT]
+    use: [provider1]
 
   - name: Google
     type: select
     proxies: [节点选择, 自动选择, DIRECT]
+    use: [provider1]
 
   - name: GitHub
     type: select
     proxies: [节点选择, 自动选择, DIRECT]
+    use: [provider1]
 
   - name: 国外媒体
     type: select
     proxies: [节点选择, 自动选择, DIRECT]
+    use: [provider1]
 
   - name: Microsoft
     type: select
     proxies: [节点选择, DIRECT]
+    use: [provider1]
 
   - name: Apple
     type: select
     proxies: [节点选择, DIRECT]
+    use: [provider1]
 
   - name: Steam
     type: select
     proxies: [DIRECT, 节点选择]
+    use: [provider1]
 
   - name: Nodeseek
     type: select
     proxies: [节点选择, DIRECT]
+    use: [provider1]
 
   - name: 国内
     type: select
     proxies: [DIRECT, 节点选择]
+    use: [provider1]
 
   - name: 广告拦截
     type: select
@@ -224,6 +235,7 @@ proxy-groups:
   - name: 其他
     type: select
     proxies: [节点选择, 自动选择, DIRECT]
+    use: [provider1]
 
 rule-anchor:
   domain: &domain
