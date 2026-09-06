@@ -1,0 +1,442 @@
+# Mihomo 配置
+# 目标：结构清晰、首次启动可靠、规则集少而精，并保留常用的服务分流。
+
+mixed-port: 7890
+redir-port: 7891
+tproxy-port: 1536
+allow-lan: true
+mode: rule
+log-level: info
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+find-process-mode: always
+disable-keep-alive: true
+external-controller: 0.0.0.0:9090
+external-ui: "./webroot/Zash/"
+external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip"
+secret: ""
+
+# 订阅地址相关（请勿删除此行，远程更新及 Surfing 模块更新依赖此标记）
+proxy-providers:
+  provider1:
+    type: http
+    url: "__LOCAL_SUBSCRIPTION_URL__"
+    path: ./proxy_provider/provider1.yaml
+    interval: 86400
+    health-check:
+      enable: true
+      url: "https://www.gstatic.com/generate_204"
+      interval: 300
+      timeout: 5000
+      lazy: true
+      expected-status: 204
+
+profile: # ← 此行位置请勿变动！此为模块更新时备份恢复订阅的〖结束标记〗 ↑
+  store-selected: true
+  store-fake-ip: true
+
+sniffer:
+  enable: true
+  parse-pure-ip: true
+  override-destination: false
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+  skip-domain:
+    - "Mijia Cloud"
+    - "+.push.apple.com"
+    - "+.wechat.com"
+    - "+.qpic.cn"
+    - "+.qq.com"
+    - "+.wechatapp.com"
+    - "+.vivox.com"
+    - "+.oray.com"
+    - "+.sunlogin.net"
+
+# Surfing 当前使用 TPROXY；TUN 保持关闭。
+tun:
+  enable: false
+  stack: mixed
+  auto-route: true
+  auto-detect-interface: true
+  strict-route: true
+  dns-hijack:
+    - "any:53"
+    - "tcp://any:53"
+
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: false
+  cache-algorithm: arc
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter-mode: blacklist
+  prefer-h3: false
+  respect-rules: true
+  use-hosts: true
+  use-system-hosts: true
+
+  # 以下域名返回真实 IP，改善局域网、国内应用、NTP 和联机游戏兼容性。
+  fake-ip-filter:
+    - "rule-set:private_domain"
+    - "rule-set:cn_domain"
+    - "+.lan"
+    - "+.local"
+    - "+.arpa"
+    - "localhost.*"
+    - "time.*.com"
+    - "ntp.*.com"
+    - "+.msftncsi.com"
+    - "+.msftconnecttest.com"
+    - "+.stun.*.*"
+    - "+.stun.*.*.*"
+    - "*.n.n.srv.nintendo.net"
+    - "+.stun.playstation.net"
+    - "*.*.xboxlive.com"
+    - "WORKGROUP"
+
+  # 只用于解析 DNS 上游地址，必须使用 IP。
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+
+  # 节点域名始终由直连 DNS 解析，避免代理与 DNS 互相依赖。
+  proxy-server-nameserver:
+    - "https://1.12.12.12/dns-query#DIRECT"
+    - "https://223.5.5.5/dns-query#DIRECT"
+
+  nameserver:
+    - "https://1.12.12.12/dns-query#DIRECT"
+    - "https://223.5.5.5/dns-query#DIRECT"
+
+  nameserver-policy:
+    "rule-set:private_domain":
+      - system
+    "rule-set:cn_domain":
+      - "https://1.12.12.12/dns-query#DIRECT"
+      - "https://223.5.5.5/dns-query#DIRECT"
+    "rule-set:geolocation_non_cn":
+      - "https://8.8.8.8/dns-query#节点选择"
+      - "https://1.1.1.1/dns-query#节点选择"
+
+  direct-nameserver:
+    - "https://1.12.12.12/dns-query"
+    - "https://223.5.5.5/dns-query"
+  direct-nameserver-follow-policy: false
+
+proxy-groups:
+  - name: 节点选择
+    type: select
+    proxies:
+      - 自动选择
+      - 故障转移
+      - 负载均衡
+      - DIRECT
+    use:
+      - provider1
+
+  - name: 自动选择
+    type: url-test
+    use:
+      - provider1
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    tolerance: 50
+    timeout: 5000
+    lazy: true
+
+  - name: 故障转移
+    type: fallback
+    use:
+      - provider1
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    timeout: 5000
+    lazy: true
+
+  - name: 负载均衡
+    type: load-balance
+    use:
+      - provider1
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    timeout: 5000
+    lazy: true
+    strategy: consistent-hashing
+
+  # 地区组使用自动测速；没有匹配节点时回退到主策略。
+  - name: 香港节点
+    type: url-test
+    use: [provider1]
+    filter: '(?i)(🇭🇰|香港|Hong\s*Kong|\bHK\b)'
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    tolerance: 50
+    empty-fallback: DIRECT
+
+  - name: 台湾节点
+    type: url-test
+    use: [provider1]
+    filter: '(?i)(🇹🇼|台湾|台灣|Taiwan|\bTW\b)'
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    tolerance: 50
+    empty-fallback: DIRECT
+
+  - name: 日本节点
+    type: url-test
+    use: [provider1]
+    filter: '(?i)(🇯🇵|日本|Japan|\bJP\b)'
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    tolerance: 50
+    empty-fallback: DIRECT
+
+  - name: 新加坡节点
+    type: url-test
+    use: [provider1]
+    filter: '(?i)(🇸🇬|新加坡|狮城|獅城|Singapore|\bSG\b)'
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    tolerance: 50
+    empty-fallback: DIRECT
+
+  - name: 美国节点
+    type: url-test
+    use: [provider1]
+    filter: '(?i)(🇺🇸|美国|美國|United\s*States|\bUS\b)'
+    url: "https://www.gstatic.com/generate_204"
+    interval: 300
+    tolerance: 50
+    empty-fallback: DIRECT
+
+  - name: AI 服务
+    type: select
+    proxies: [新加坡节点, 美国节点, 日本节点, 节点选择, DIRECT]
+
+  - name: Telegram
+    type: select
+    proxies: [新加坡节点, 节点选择, 故障转移, DIRECT]
+
+  - name: YouTube
+    type: select
+    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+
+  - name: Google
+    type: select
+    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+
+  - name: GitHub
+    type: select
+    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+
+  - name: 国外媒体
+    type: select
+    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+
+  - name: Microsoft
+    type: select
+    proxies: [节点选择, DIRECT]
+
+  - name: Apple
+    type: select
+    proxies: [节点选择, DIRECT]
+
+  - name: Steam
+    type: select
+    proxies: [DIRECT, 节点选择]
+
+  - name: Nodeseek
+    type: select
+    proxies: [节点选择, DIRECT]
+
+  - name: 国内
+    type: select
+    proxies: [DIRECT, 节点选择]
+
+  - name: 广告拦截
+    type: select
+    proxies: [REJECT, DIRECT]
+
+  - name: 其他
+    type: select
+    proxies: [节点选择, 自动选择, DIRECT]
+
+rule-anchor:
+  domain: &domain
+    type: http
+    interval: 86400
+    behavior: domain
+    format: mrs
+  ip: &ip
+    type: http
+    interval: 86400
+    behavior: ipcidr
+    format: mrs
+
+rule-providers:
+  private_domain:
+    <<: *domain
+    path: ./rule_provider/private_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/private.mrs"
+
+  ads_domain:
+    <<: *domain
+    path: ./rule_provider/ads_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/category-ads-all.mrs"
+
+  awavenue_domain:
+    <<: *domain
+    path: ./rule_provider/awavenue_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/TG-Twilight/AWAvenue-Ads-Rule@main/Filters/AWAvenue-Ads-Rule-Clash.mrs"
+
+  ai_domain:
+    <<: *domain
+    path: ./rule_provider/ai_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/category-ai-!cn.mrs"
+
+  github_domain:
+    <<: *domain
+    path: ./rule_provider/github_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/github.mrs"
+
+  telegram_domain:
+    <<: *domain
+    path: ./rule_provider/telegram_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/telegram.mrs"
+
+  youtube_domain:
+    <<: *domain
+    path: ./rule_provider/youtube_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/youtube.mrs"
+
+  google_domain:
+    <<: *domain
+    path: ./rule_provider/google_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/google.mrs"
+
+  google_fcm_domain:
+    <<: *domain
+    path: ./rule_provider/google_fcm_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/googlefcm.mrs"
+
+  microsoft_domain:
+    <<: *domain
+    path: ./rule_provider/microsoft_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/microsoft.mrs"
+
+  onedrive_domain:
+    <<: *domain
+    path: ./rule_provider/onedrive_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/onedrive.mrs"
+
+  apple_domain:
+    <<: *domain
+    path: ./rule_provider/apple_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/apple.mrs"
+
+  netflix_domain:
+    <<: *domain
+    path: ./rule_provider/netflix_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/netflix.mrs"
+
+  media_domain:
+    <<: *domain
+    path: ./rule_provider/media_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/category-entertainment.mrs"
+
+  steam_domain:
+    <<: *domain
+    path: ./rule_provider/steam_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/steam.mrs"
+
+  cn_domain:
+    <<: *domain
+    path: ./rule_provider/cn_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/cn.mrs"
+
+  geolocation_non_cn:
+    <<: *domain
+    path: ./rule_provider/geolocation_non_cn.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/geolocation-!cn.mrs"
+
+  jsproxy:
+    type: http
+    interval: 86400
+    behavior: classical
+    format: yaml
+    path: ./rule_provider/jsproxy.yaml
+    url: "https://quantil.jsdelivr.net/gh/qklg/pic@master/ruleset/jsproxy.yaml"
+
+  private_ip:
+    <<: *ip
+    path: ./rule_provider/private_ip.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/private.mrs"
+
+  telegram_ip:
+    <<: *ip
+    path: ./rule_provider/telegram_ip.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/telegram.mrs"
+
+  google_ip:
+    <<: *ip
+    path: ./rule_provider/google_ip.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/google.mrs"
+
+  netflix_ip:
+    <<: *ip
+    path: ./rule_provider/netflix_ip.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/netflix.mrs"
+
+  cn_ip:
+    <<: *ip
+    path: ./rule_provider/cn_ip.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/cn.mrs"
+
+rules:
+  # 本机应用和局域网优先直连。
+  - PROCESS-NAME,WeChat.exe,DIRECT
+  - PROCESS-NAME,Weixin.exe,DIRECT
+  - RULE-SET,private_domain,DIRECT
+  - RULE-SET,private_ip,DIRECT,no-resolve
+  - DOMAIN-SUFFIX,wechat.com,DIRECT
+  - DOMAIN-SUFFIX,weixin.qq.com,DIRECT
+  - DOMAIN-SUFFIX,qq.com,DIRECT
+  - DOMAIN-SUFFIX,qpic.cn,DIRECT
+
+  # 广告与明确拒绝项。
+  - RULE-SET,ads_domain,广告拦截
+  - RULE-SET,awavenue_domain,广告拦截
+  - DOMAIN-SUFFIX,adobe.io,REJECT
+
+  # 自定义及服务分流。
+  - DOMAIN-SUFFIX,nodeseek.com,Nodeseek
+  - RULE-SET,jsproxy,节点选择
+  - RULE-SET,ai_domain,AI 服务
+  - RULE-SET,telegram_domain,Telegram
+  - RULE-SET,telegram_ip,Telegram,no-resolve
+  - RULE-SET,youtube_domain,YouTube
+  - RULE-SET,github_domain,GitHub
+  - RULE-SET,google_fcm_domain,Google
+  - RULE-SET,google_domain,Google
+  - RULE-SET,google_ip,Google,no-resolve
+  - RULE-SET,onedrive_domain,Microsoft
+  - RULE-SET,microsoft_domain,Microsoft
+  - RULE-SET,apple_domain,Apple
+  - RULE-SET,netflix_domain,国外媒体
+  - RULE-SET,netflix_ip,国外媒体,no-resolve
+  - RULE-SET,media_domain,国外媒体
+  - RULE-SET,steam_domain,Steam
+
+  # 国内优先直连，未分类的境外流量交给“其他”。
+  - RULE-SET,cn_domain,国内
+  - RULE-SET,cn_ip,国内,no-resolve
+  - RULE-SET,geolocation_non_cn,其他
+  - MATCH,其他
