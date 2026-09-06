@@ -10,7 +10,7 @@ log-level: info
 ipv6: false
 unified-delay: true
 tcp-concurrent: true
-find-process-mode: always
+find-process-mode: strict
 disable-keep-alive: true
 external-controller: 0.0.0.0:9090
 external-ui: "./webroot/Zash/"
@@ -325,6 +325,11 @@ rule-providers:
     path: ./rule_provider/steam_domain.mrs
     url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/steam.mrs"
 
+  steam_cn_domain:
+    <<: *domain
+    path: ./rule_provider/steam_cn_domain.mrs
+    url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/steam@cn.mrs"
+
   cn_domain:
     <<: *domain
     path: ./rule_provider/cn_domain.mrs
@@ -334,14 +339,6 @@ rule-providers:
     <<: *domain
     path: ./rule_provider/geolocation_non_cn.mrs
     url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geosite/geolocation-!cn.mrs"
-
-  jsproxy:
-    type: http
-    interval: 86400
-    behavior: classical
-    format: yaml
-    path: ./rule_provider/jsproxy.yaml
-    url: "https://quantil.jsdelivr.net/gh/qklg/pic@master/ruleset/jsproxy.yaml"
 
   private_ip:
     <<: *ip
@@ -369,11 +366,13 @@ rule-providers:
     url: "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@meta/geo/geoip/cn.mrs"
 
 rules:
-  # 本机应用和局域网优先直连。
-  - PROCESS-NAME,WeChat.exe,DIRECT
-  - PROCESS-NAME,Weixin.exe,DIRECT
+  # 局域网与私有地址始终优先直连。
   - RULE-SET,private_domain,DIRECT
   - RULE-SET,private_ip,DIRECT,no-resolve
+
+  # 手机端微信和 QQ 强制直连。
+  - PROCESS-NAME,com.tencent.mm,DIRECT
+  - PROCESS-NAME,com.tencent.mobileqq,DIRECT
   - DOMAIN-SUFFIX,wechat.com,DIRECT
   - DOMAIN-SUFFIX,weixin.qq.com,DIRECT
   - DOMAIN-SUFFIX,qq.com,DIRECT
@@ -382,26 +381,32 @@ rules:
   # 广告与明确拒绝项。
   - RULE-SET,ads_domain,广告拦截
   - RULE-SET,awavenue_domain,广告拦截
-  - DOMAIN-SUFFIX,adobe.io,REJECT
+  - DOMAIN-SUFFIX,adobe.io,广告拦截
 
-  # 自定义及服务分流。
+  # 具体服务放在宽泛规则之前，避免被提前截获。
   - DOMAIN-SUFFIX,nodeseek.com,Nodeseek
-  - RULE-SET,jsproxy,节点选择
   - RULE-SET,ai_domain,AI 服务
   - RULE-SET,telegram_domain,Telegram
   - RULE-SET,telegram_ip,Telegram,no-resolve
   - RULE-SET,youtube_domain,YouTube
   - RULE-SET,github_domain,GitHub
+  - DOMAIN-SUFFIX,linux.do,节点选择
+  - DOMAIN-SUFFIX,xiaoz.org,节点选择
+  - DOMAIN-SUFFIX,daniao.org,节点选择
+  - DOMAIN-SUFFIX,guozeyu.com,节点选择
+  - DOMAIN-SUFFIX,xlog.app,节点选择
+  - DOMAIN-SUFFIX,frostsky.com,节点选择
   - RULE-SET,google_fcm_domain,Google
   - RULE-SET,google_domain,Google
   - RULE-SET,google_ip,Google,no-resolve
   - RULE-SET,onedrive_domain,Microsoft
   - RULE-SET,microsoft_domain,Microsoft
   - RULE-SET,apple_domain,Apple
+  - RULE-SET,steam_cn_domain,国内
+  - RULE-SET,steam_domain,Steam
   - RULE-SET,netflix_domain,国外媒体
   - RULE-SET,netflix_ip,国外媒体,no-resolve
   - RULE-SET,media_domain,国外媒体
-  - RULE-SET,steam_domain,Steam
 
   # 国内优先直连，未分类的境外流量交给“其他”。
   - RULE-SET,cn_domain,国内
