@@ -17,7 +17,7 @@ external-ui: "./webroot/Zash/"
 external-ui-url: "https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip"
 secret: ""
 
-# 订阅地址相关（请勿删除此行，远程更新及 Surfing 模块更新依赖此标记）
+# 远程订阅配置开始（请勿删除；真实订阅仅保存在手机本地）
 proxy-providers:
   provider1:
     type: http
@@ -32,7 +32,9 @@ proxy-providers:
       lazy: true
       expected-status: 204
 
-profile: # ← 此行位置请勿变动！此为模块更新时备份恢复订阅的〖结束标记〗 ↑
+# 远程订阅配置结束
+
+profile:
   store-selected: true
   store-fake-ip: true
 
