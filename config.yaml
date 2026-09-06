@@ -173,75 +173,29 @@ proxy-groups:
     lazy: true
     strategy: consistent-hashing
 
-  # 地区组使用自动测速；没有匹配节点时回退到主策略。
-  - name: 香港节点
-    type: url-test
-    use: [provider1]
-    filter: '(?i)(🇭🇰|香港|Hong\s*Kong|\bHK\b)'
-    url: "https://www.gstatic.com/generate_204"
-    interval: 300
-    tolerance: 50
-    empty-fallback: DIRECT
-
-  - name: 台湾节点
-    type: url-test
-    use: [provider1]
-    filter: '(?i)(🇹🇼|台湾|台灣|Taiwan|\bTW\b)'
-    url: "https://www.gstatic.com/generate_204"
-    interval: 300
-    tolerance: 50
-    empty-fallback: DIRECT
-
-  - name: 日本节点
-    type: url-test
-    use: [provider1]
-    filter: '(?i)(🇯🇵|日本|Japan|\bJP\b)'
-    url: "https://www.gstatic.com/generate_204"
-    interval: 300
-    tolerance: 50
-    empty-fallback: DIRECT
-
-  - name: 新加坡节点
-    type: url-test
-    use: [provider1]
-    filter: '(?i)(🇸🇬|新加坡|狮城|獅城|Singapore|\bSG\b)'
-    url: "https://www.gstatic.com/generate_204"
-    interval: 300
-    tolerance: 50
-    empty-fallback: DIRECT
-
-  - name: 美国节点
-    type: url-test
-    use: [provider1]
-    filter: '(?i)(🇺🇸|美国|美國|United\s*States|\bUS\b)'
-    url: "https://www.gstatic.com/generate_204"
-    interval: 300
-    tolerance: 50
-    empty-fallback: DIRECT
-
   - name: AI 服务
     type: select
-    proxies: [新加坡节点, 美国节点, 日本节点, 节点选择, DIRECT]
+    proxies: [节点选择, 自动选择, 故障转移, DIRECT]
 
   - name: Telegram
     type: select
-    proxies: [新加坡节点, 节点选择, 故障转移, DIRECT]
+    proxies: [节点选择, 自动选择, 故障转移, DIRECT]
 
   - name: YouTube
     type: select
-    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+    proxies: [节点选择, 自动选择, DIRECT]
 
   - name: Google
     type: select
-    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+    proxies: [节点选择, 自动选择, DIRECT]
 
   - name: GitHub
     type: select
-    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+    proxies: [节点选择, 自动选择, DIRECT]
 
   - name: 国外媒体
     type: select
-    proxies: [节点选择, 自动选择, 香港节点, 台湾节点, 日本节点, 新加坡节点, 美国节点, DIRECT]
+    proxies: [节点选择, 自动选择, DIRECT]
 
   - name: Microsoft
     type: select
