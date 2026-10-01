@@ -41,7 +41,15 @@ There is no generic CI or core binary in this repository. Valid YAML alone does 
 
 ## Network and security
 
-The current template enables `allow-lan: true`, exposes the controller on `0.0.0.0:9090`, and has an empty `secret`. Set authentication, restrict the bind address, or restrict sources through the device firewall in the **local configuration** before using untrusted Wi-Fi or shared networks. Do not publish real controller credentials.
+The current template enables `allow-lan: true`, exposes the controller on `0.0.0.0:9090`, and has an empty `secret`. Avoid exposing the controller on untrusted Wi-Fi or shared networks.
+
+**Editing only the local runtime configuration is not persistent.** Each template update retains only the subscription block; everything else, including `external-controller: 0.0.0.0:9090` and the empty `secret`, is restored from this template. Persistent options:
+
+- Restrict port 9090 in the device firewall (iptables/nftables rules or the module's own access control), which survives template replacement; or
+- Make the local updater re-apply local `secret` / `external-controller` overrides after merging the subscription block and before validation; or
+- Change the published template defaults (for example to `127.0.0.1:9090`) through a reviewed PR — this affects every device using the template, so confirm how the dashboard is reached first.
+
+Do not publish real controller credentials. This documentation update does not change the template defaults.
 
 IPv6 and keep-alive are currently disabled; rule sets and UI assets are downloaded externally. These are template choices, not universally optimal defaults. Verify against the actual core, proxy mode, power use and stability requirements. This is not a BoxProxy eBPF-specific configuration.
 
